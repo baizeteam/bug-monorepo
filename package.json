@@ -1,0 +1,17 @@
+{
+  "name": "nest-vue3-nonorepo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm --filter @bug/shared build && concurrently \"pnpm --filter be-main start:dev\" \"pnpm --filter @bug/fe-admin dev\" \"pnpm --filter @bug/fe-h5 dev\"",
+    "db:up": "docker compose up -d mysql",
+    "db:down": "docker compose down"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

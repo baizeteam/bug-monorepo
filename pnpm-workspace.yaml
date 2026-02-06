@@ -1,0 +1,10 @@
+# pnpm-workspace.yaml
+packages:
+  # 后端 NestJS 项目目录
+  - "packages/be-main"
+  # 前端 Vue3 后台管理
+  - "packages/fe-admin"
+  # 前端 H5 用户端
+  - "packages/fe-h5"
+  # 共享工具包
+  - "packages/shared"
