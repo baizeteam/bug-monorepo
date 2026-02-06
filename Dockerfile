@@ -2,7 +2,7 @@
 # 多阶段构建：NestJS 后端 + Vite 前端 一体化镜像
 # ============================================
 
-# ---------- Stage 1: 构建3----------
+# ---------- Stage 1: 构建 ----------
 FROM node:20-alpine AS builder
 
 # 安装 pnpm
@@ -31,8 +31,9 @@ RUN pnpm --filter @bug/fe-admin build
 # ---------- Stage 2: 生产镜像 ----------
 FROM node:20-alpine
 
-# 安装 nginx
-RUN apk add --no-cache nginx
+# 配置 apk 镜像源并安装 nginx
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories && \
+    apk add --no-cache nginx
 
 WORKDIR /app
 
