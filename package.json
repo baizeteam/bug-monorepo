@@ -4,14 +4,17 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "pnpm --filter @bug/shared build && concurrently \"pnpm --filter be-main start:dev\" \"pnpm --filter @bug/fe-admin dev\" \"pnpm --filter @bug/fe-h5 dev\"",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
     "db:up": "docker compose up -d mysql",
     "db:down": "docker compose down"
   },
+  "packageManager": "pnpm@9.0.0",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "turbo": "^2.8.3"
   }
 }
