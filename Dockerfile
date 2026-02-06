@@ -10,22 +10,15 @@ RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
 
-# 复制依赖声明
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/be-main/package.json ./packages/be-main/
-COPY packages/fe-admin/package.json ./packages/fe-admin/
-COPY packages/fe-h5/package.json ./packages/fe-h5/
-
-# 安装依赖（含 devDependencies，用于构建）
-RUN pnpm install --frozen-lockfile
-
-# 复制源码
+# 复制依赖声明与源码（先复制源码，再 install，避免覆盖 pnpm 创建的 node_modules 符号链接）
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY packages/shared ./packages/shared
 COPY packages/be-main ./packages/be-main
 COPY packages/fe-admin ./packages/fe-admin
 COPY packages/fe-h5 ./packages/fe-h5
-COPY turbo.json ./
+
+# 安装依赖（含 devDependencies，用于构建）
+RUN pnpm install --frozen-lockfile
 
 # 构建：shared -> be-main, fe-admin, fe-h5
 # VITE_API_BASE_URL 留空则使用相对路径 /api，同源由 Nginx 代理
