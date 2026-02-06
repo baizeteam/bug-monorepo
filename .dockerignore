@@ -1,0 +1,33 @@
+# 依赖与构建产物（在镜像内重新安装/构建）
+node_modules
+**/dist
+**/dist-ssr
+
+# 版本控制与缓存
+.git
+.gitignore
+.turbo
+*.log
+
+# 开发与文档
+.vscode
+.idea
+docs
+*.md
+!README.md
+
+# 测试
+**/*.spec.ts
+**/*.e2e-spec.ts
+**/coverage
+**/test
+**/__tests__
+
+# 其他
+.env
+.env.*
+!.env.example
+**/env.example
+db
+scripts/deploy.ps1
+scripts/server-setup.sh

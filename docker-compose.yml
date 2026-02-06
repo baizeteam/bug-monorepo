@@ -12,6 +12,31 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 一体化应用（NestJS + fe-admin + fe-h5）
+  app:
+    build: .
+    container_name: bug-platform-app
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: root123
+      DB_DATABASE: bug_platform
+      JWT_SECRET: your-production-jwt-secret-change-me
+      JWT_EXPIRES_IN: 7d
+      PORT: 3000
+    depends_on:
+      mysql:
+        condition: service_healthy
 
 volumes:
   mysql_data:
