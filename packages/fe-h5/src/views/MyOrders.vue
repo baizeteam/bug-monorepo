@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMyOrders, type MyOrderItem } from '../api/order'
+import { getMyOrders, type MyOrderItem, type MyOrderType } from '../api/order'
 import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, formatDate } from '@bug/shared'
 
 const router = useRouter()
+const activeTab = ref<MyOrderType>('taken')
 const list = ref<MyOrderItem[]>([])
 const loading = ref(false)
 const total = ref(0)
@@ -14,7 +15,11 @@ const pageSize = ref(10)
 async function load() {
   loading.value = true
   try {
-    const res = await getMyOrders({ page: page.value, pageSize: pageSize.value })
+    const res = await getMyOrders({
+      type: activeTab.value,
+      page: page.value,
+      pageSize: pageSize.value,
+    })
     list.value = res.list
     total.value = res.total
   } catch {
@@ -25,16 +30,37 @@ async function load() {
   }
 }
 
+watch(activeTab, () => {
+  page.value = 1
+  load()
+})
+
 onMounted(load)
 </script>
 
 <template>
   <div class="my-orders">
     <h1>我的订单</h1>
+    <div class="tabs">
+      <button
+        :class="{ active: activeTab === 'taken' }"
+        @click="activeTab = 'taken'"
+      >
+        我承接的
+      </button>
+      <button
+        :class="{ active: activeTab === 'published' }"
+        @click="activeTab = 'published'"
+      >
+        我发布的
+      </button>
+    </div>
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="list.length === 0" class="empty">
       <p>暂无订单</p>
-      <p class="hint">承接的 Bug 将显示在这里</p>
+      <p class="hint">
+        {{ activeTab === 'taken' ? '承接的 Bug 将显示在这里' : '发布的 Bug 将显示在这里' }}
+      </p>
     </div>
     <div v-else class="list">
       <div
@@ -52,10 +78,14 @@ onMounted(load)
           </span>
         </p>
         <p class="time">
-          承接于 {{ item.takeTime ? formatDate(item.takeTime) : '-' }}
+          {{ activeTab === 'taken' ? '承接于' : '发布于' }}
+          {{ activeTab === 'taken' && item.takeTime ? formatDate(item.takeTime) : item.publishTime ? formatDate(item.publishTime) : '-' }}
         </p>
-        <p v-if="item.publisher" class="publisher">
+        <p v-if="activeTab === 'taken' && item.publisher" class="publisher">
           发布人: {{ item.publisher.username }}
+        </p>
+        <p v-if="activeTab === 'published' && item.taker" class="publisher">
+          承接人: {{ item.taker.username }}
         </p>
       </div>
     </div>
@@ -75,6 +105,24 @@ onMounted(load)
   margin: 0 0 1rem;
   font-size: 1.25rem;
   color: #1a1a1a;
+}
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.tabs button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.tabs button.active {
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
 }
 .loading {
   text-align: center;

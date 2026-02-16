@@ -9,9 +9,16 @@ export interface MyOrderItem {
   publishTime: string
   takeTime: string | null
   publisher: { id: number; username: string; contactInfo?: string } | null
+  taker?: { id: number; username: string; contactInfo?: string } | null
 }
 
-export function getMyOrders(params?: { page?: number; pageSize?: number }) {
+export type MyOrderType = 'published' | 'taken'
+
+export function getMyOrders(params?: {
+  type?: MyOrderType
+  page?: number
+  pageSize?: number
+}) {
   return get<{ list: MyOrderItem[]; total: number; page: number; pageSize: number }>(
     '/api/order/my',
     { params },

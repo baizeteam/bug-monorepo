@@ -7,6 +7,7 @@ export const navConfig = [
   { path: '/', name: 'OrderList', label: '订单列表', roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
   { path: '/users', name: 'UserList', label: '用户管理', roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
   { path: '/admin', name: 'Admin', label: '时效监控', roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+  { path: '/time-rules', name: 'TimeRules', label: '时效规则', roles: [UserRole.SUPER_ADMIN] },
   { path: '/logs', name: 'LogList', label: '操作日志', roles: [UserRole.SUPER_ADMIN] },
 ] as const
 
@@ -24,6 +25,7 @@ const router = createRouter({
         { path: '', name: 'OrderList', component: () => import('../views/OrderList.vue'), meta: { roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] } },
         { path: 'users', name: 'UserList', component: () => import('../views/UserList.vue'), meta: { roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] } },
         { path: 'admin', name: 'Admin', component: () => import('../views/Admin.vue'), meta: { roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] } },
+        { path: 'time-rules', name: 'TimeRules', component: () => import('../views/TimeRules.vue'), meta: { roles: [UserRole.SUPER_ADMIN] } },
         { path: 'logs', name: 'LogList', component: () => import('../views/LogList.vue'), meta: { roles: [UserRole.SUPER_ADMIN] } },
       ],
     },

@@ -67,8 +67,41 @@ export function manualIntervention(bugId: number, status: number, operationNote:
   return post('/api/admin/manual-intervention', { bugId, status, operationNote })
 }
 
-export function getTimeRules() {
-  return get('/api/admin/time-rules')
+export interface TimeRuleItem {
+  id: number
+  ruleName: string
+  statusType: number
+  warnHour: number
+  expireHour: number
+  updateTime: string
+  isEnable: number
+}
+
+export function getTimeRules(onlyEnabled?: boolean) {
+  return get<TimeRuleItem[]>(
+    '/api/admin/time-rules',
+    onlyEnabled ? { params: { onlyEnabled: '1' } } : undefined,
+  )
+}
+
+export function createTimeRule(data: {
+  ruleName: string
+  statusType: number
+  warnHour: number
+  expireHour: number
+}) {
+  return post<TimeRuleItem>('/api/admin/time-rules', data)
+}
+
+export function updateTimeRule(
+  id: number,
+  data: Partial<{ ruleName: string; statusType: number; warnHour: number; expireHour: number }>,
+) {
+  return put<TimeRuleItem>(`/api/admin/time-rules/${id}`, data)
+}
+
+export function updateTimeRuleEnable(id: number, isEnable: 0 | 1) {
+  return put<TimeRuleItem>(`/api/admin/time-rules/${id}/enable`, { isEnable })
 }
 
 export interface OperationLogItem {
@@ -82,10 +115,18 @@ export interface OperationLogItem {
   bug?: { id: number; title: string } | null
 }
 
-export function getOperationLogs(bugId?: number, page?: number, pageSize?: number) {
+export function getOperationLogs(params?: {
+  bugId?: number
+  operatorId?: number
+  operationType?: number
+  startTime?: string
+  endTime?: string
+  page?: number
+  pageSize?: number
+}) {
   return get<{ list: OperationLogItem[]; total: number; page: number; pageSize: number }>(
     '/api/admin/operation-logs',
-    { params: { bugId, page, pageSize } },
+    { params },
   )
 }
 
