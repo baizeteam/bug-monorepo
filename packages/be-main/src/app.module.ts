@@ -34,6 +34,8 @@ import { AppService } from './app.service'
           entities: [User, Bug, OperationLog, TimeRule],
           synchronize: true,
           charset: 'utf8mb4',
+          retryAttempts: 10,
+          retryDelay: 3000,
         }
       },
       inject: [ConfigService],

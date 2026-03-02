@@ -14,11 +14,14 @@ export class OrderController {
   @Get('my')
   async getMyOrders(
     @CurrentUser('id') userId: number,
+    @Query('type') type?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
+    const validType = type === 'published' || type === 'taken' ? type : 'taken'
     return this.orderService.findMyOrders(
       userId,
+      validType,
       page ? parseInt(page, 10) : 1,
       pageSize ? parseInt(pageSize, 10) : 20,
     )

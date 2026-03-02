@@ -10,6 +10,8 @@ import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { AssignRoleDto } from './dto/assign-role.dto'
 import { UpdateUserStatusDto } from './dto/update-status.dto'
+import { CreateTimeRuleDto } from './dto/create-time-rule.dto'
+import { UpdateTimeRuleDto } from './dto/update-time-rule.dto'
 
 @ApiTags('后台管理')
 @ApiBearerAuth()
@@ -84,9 +86,36 @@ export class AdminController {
   }
 
   @Get('time-rules')
-  async getTimeRules(@CurrentUser() user: { role: number }) {
+  async getTimeRules(
+    @CurrentUser() user: { role: number },
+    @Query('onlyEnabled') onlyEnabled?: string,
+  ) {
     this.adminService.ensureAdmin(user.role)
-    return this.adminService.getTimeRules()
+    return this.adminService.getTimeRules(onlyEnabled === '1')
+  }
+
+  @Post('time-rules')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  async createTimeRule(@Body() dto: CreateTimeRuleDto) {
+    return this.adminService.createTimeRule(dto)
+  }
+
+  @Put('time-rules/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  async updateTimeRule(@Param('id') id: string, @Body() dto: UpdateTimeRuleDto) {
+    return this.adminService.updateTimeRule(parseInt(id, 10), dto)
+  }
+
+  @Put('time-rules/:id/enable')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  async updateTimeRuleEnable(
+    @Param('id') id: string,
+    @Body() body: { isEnable: 0 | 1 },
+  ) {
+    return this.adminService.updateTimeRuleEnable(parseInt(id, 10), body.isEnable)
   }
 
   @Get('operation-logs')
@@ -95,14 +124,22 @@ export class AdminController {
   async getOperationLogs(
     @CurrentUser() user: { role: number },
     @Query('bugId') bugId?: string,
+    @Query('operatorId') operatorId?: string,
+    @Query('operationType') operationType?: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    return this.adminService.getOperationLogs(
-      bugId ? parseInt(bugId, 10) : undefined,
-      page ? parseInt(page, 10) : 1,
-      pageSize ? parseInt(pageSize, 10) : 20,
-    )
+    return this.adminService.getOperationLogs({
+      bugId: bugId ? parseInt(bugId, 10) : undefined,
+      operatorId: operatorId ? parseInt(operatorId, 10) : undefined,
+      operationType: operationType !== undefined ? parseInt(operationType, 10) : undefined,
+      startTime,
+      endTime,
+      page: page ? parseInt(page, 10) : 1,
+      pageSize: pageSize ? parseInt(pageSize, 10) : 20,
+    })
   }
 
   @Get('users')

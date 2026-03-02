@@ -11,23 +11,45 @@ export class OrderService {
     private bugRepo: Repository<Bug>,
   ) {}
 
-  async findMyOrders(userId: number, page = 1, pageSize = 20) {
+  async findMyOrders(
+    userId: number,
+    type: 'published' | 'taken' = 'taken',
+    page = 1,
+    pageSize = 20,
+  ) {
+    const isPublished = type === 'published'
+    const where: Record<string, unknown> = { isDelete: 0 }
+    if (isPublished) {
+      where.publisherId = userId
+    } else {
+      where.takerId = userId
+    }
+
     const [list, total] = await this.bugRepo.findAndCount({
-      where: { takerId: userId, isDelete: 0 },
-      order: { takeTime: 'DESC' },
+      where,
+      order: isPublished ? { publishTime: 'DESC' } : { takeTime: 'DESC' },
       skip: (page - 1) * pageSize,
       take: pageSize,
     })
 
     if (list.length > 0) {
       const publisherIds = [...new Set(list.map((b) => b.publisherId))]
-      const publishers = await this.bugRepo.manager.find(User, {
-        where: publisherIds.map((id) => ({ id })),
-        select: ['id', 'username', 'contactInfo'],
-      })
+      const takerIds = [...new Set(list.map((b) => b.takerId).filter((x): x is number => x != null))]
+      const [publishers, takers] = await Promise.all([
+        this.bugRepo.manager.find(User, {
+          where: publisherIds.map((id) => ({ id })),
+          select: ['id', 'username', 'contactInfo'],
+        }),
+        this.bugRepo.manager.find(User, {
+          where: takerIds.map((id) => ({ id })),
+          select: ['id', 'username', 'contactInfo'],
+        }),
+      ])
       const pubMap = new Map(publishers.map((p) => [p.id, p]))
+      const takerMap = new Map(takers.map((t) => [t.id, t]))
       for (const bug of list) {
         ;(bug as any).publisher = bug.publisherId ? pubMap.get(bug.publisherId) ?? null : null
+        ;(bug as any).taker = bug.takerId ? takerMap.get(bug.takerId) ?? null : null
       }
     }
 
@@ -41,6 +63,7 @@ export class OrderService {
         publishTime: b.publishTime,
         takeTime: b.takeTime,
         publisher: (b as any).publisher,
+        taker: (b as any).taker,
       })),
       total,
       page,

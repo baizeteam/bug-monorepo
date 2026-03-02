@@ -10,6 +10,8 @@ import { BugStatus, OperationType, TimeStatus, UserRole, UserStatus, OPERATION_T
 import { DataSource } from 'typeorm'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { CreateTimeRuleDto } from './dto/create-time-rule.dto'
+import { UpdateTimeRuleDto } from './dto/update-time-rule.dto'
 
 @Injectable()
 export class AdminService {
@@ -188,8 +190,35 @@ export class AdminService {
     return bug
   }
 
-  async getTimeRules() {
-    return this.ruleRepo.find({ where: { isEnable: 1 }, order: { statusType: 'ASC' } })
+  async getTimeRules(onlyEnabled = false) {
+    const where: Record<string, unknown> = {}
+    if (onlyEnabled) where.isEnable = 1
+    return this.ruleRepo.find({ where, order: { statusType: 'ASC' } })
+  }
+
+  async createTimeRule(dto: CreateTimeRuleDto) {
+    const rule = this.ruleRepo.create({
+      ...dto,
+      isEnable: 1,
+    })
+    await this.ruleRepo.save(rule)
+    return rule
+  }
+
+  async updateTimeRule(id: number, dto: UpdateTimeRuleDto) {
+    const rule = await this.ruleRepo.findOne({ where: { id } })
+    if (!rule) throw new NotFoundException('时效规则不存在')
+    Object.assign(rule, dto)
+    await this.ruleRepo.save(rule)
+    return rule
+  }
+
+  async updateTimeRuleEnable(id: number, isEnable: 0 | 1) {
+    const rule = await this.ruleRepo.findOne({ where: { id } })
+    if (!rule) throw new NotFoundException('时效规则不存在')
+    rule.isEnable = isEnable
+    await this.ruleRepo.save(rule)
+    return rule
   }
 
   async getUserList(params: {
@@ -347,15 +376,29 @@ export class AdminService {
     return { id: userId, status }
   }
 
-  async getOperationLogs(bugId?: number, page = 1, pageSize = 20) {
-    const where: Record<string, unknown> = {}
-    if (bugId) where.bugId = bugId
-    const [list, total] = await this.logRepo.findAndCount({
-      where,
-      order: { operationTime: 'DESC' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    })
+  async getOperationLogs(params: {
+    bugId?: number
+    operatorId?: number
+    operationType?: number
+    startTime?: string
+    endTime?: string
+    page?: number
+    pageSize?: number
+  }) {
+    const { bugId, operatorId, operationType, startTime, endTime, page = 1, pageSize = 20 } = params
+    const qb = this.logRepo.createQueryBuilder('log').orderBy('log.operation_time', 'DESC')
+
+    if (bugId != null) qb.andWhere('log.bug_id = :bugId', { bugId })
+    if (operatorId != null) qb.andWhere('log.operator_id = :operatorId', { operatorId })
+    if (operationType != null) qb.andWhere('log.operation_type = :operationType', { operationType })
+    if (startTime) qb.andWhere('log.operation_time >= :startTime', { startTime })
+    if (endTime) qb.andWhere('log.operation_time <= :endTime', { endTime })
+
+    const total = await qb.getCount()
+    const list = await qb
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getMany()
     if (list.length > 0) {
       const operatorIds = [...new Set(list.map((l) => l.operatorId))]
       const bugIds = [...new Set(list.map((l) => l.bugId).filter((x): x is number => x != null))]
