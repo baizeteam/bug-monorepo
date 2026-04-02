@@ -9,7 +9,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const list = ref<AdminOrderItem[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(5)
 const loading = ref(false)
 const keyword = ref('')
 const statusFilter = ref<number | ''>('')

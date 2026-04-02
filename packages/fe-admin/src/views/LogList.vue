@@ -7,7 +7,7 @@ import { OperationType } from '@bug/shared'
 const list = ref<OperationLogItem[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(5)
 const loading = ref(false)
 const bugIdFilter = ref('')
 const operatorIdFilter = ref<number | ''>('')
