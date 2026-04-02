@@ -52,6 +52,22 @@ export class SeedService implements OnModuleInit {
       })
       console.log('[Seed] 已创建普通管理员: admin / admin123')
     }
+
+    const userExists = await this.userRepo.findOne({
+      where: { username: 'user_demo', isDelete: 0 },
+    })
+    if (!userExists) {
+      const hash = await bcrypt.hash('user123', 10)
+      await this.userRepo.save({
+        username: 'user_demo',
+        phone: '13800000002',
+        email: 'user_demo@bug.local',
+        password: hash,
+        role: UserRole.USER,
+        status: 0,
+      })
+      console.log('[Seed] 已创建默认用户: user_demo / user123')
+    }
   }
 
   private async seedTimeRules() {

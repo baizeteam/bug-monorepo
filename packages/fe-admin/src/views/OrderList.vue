@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getAdminOrders, getAdminOrderById, getAdminOrderStats, type AdminOrderItem, type AdminOrderDetail } from '../api/admin'
+import { getAdminOrders, getAdminOrderById, getAdminOrderStats, softDeleteAdminOrder, type AdminOrderItem, type AdminOrderDetail } from '../api/admin'
 import { BUG_STATUS_LABELS, TIME_STATUS_LABELS } from '@bug/shared'
 import { BugStatus, TimeStatus } from '@bug/shared'
+import { useAuthStore } from '../stores/auth'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref<AdminOrderItem[]>([])
 const total = ref(0)
@@ -17,6 +19,7 @@ const stats = ref<{ total: number; byStatus: Record<number, number> } | null>(nu
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detailData = ref<AdminOrderDetail | null>(null)
+const auth = useAuthStore()
 
 async function load() {
   loading.value = true
@@ -57,6 +60,22 @@ async function openDetail(id: number) {
   } finally {
     detailLoading.value = false
   }
+}
+
+async function removeOrder(row: AdminOrderItem) {
+  await ElMessageBox.confirm(
+    `确认删除订单「${row.title}」吗？该操作为软删除且不可逆。`,
+    '删除确认',
+    {
+      type: 'warning',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+    },
+  )
+  await softDeleteAdminOrder(row.id)
+  ElMessage.success('删除成功')
+  await load()
+  await loadStats()
 }
 
 onMounted(() => {
@@ -142,6 +161,11 @@ onMounted(() => {
         <el-table-column prop="takeTime" label="承接时间" width="170">
           <template #default="{ row }">
             {{ row.takeTime ?? '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column v-if="auth.isSuperAdmin" label="操作" width="110" fixed="right">
+          <template #default="{ row }">
+            <el-button type="danger" link @click="removeOrder(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

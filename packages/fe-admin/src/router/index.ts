@@ -40,7 +40,12 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
   if (auth.token && !auth.user) {
-    await auth.fetchProfile()
+    try {
+      await auth.fetchProfile()
+    } catch {
+      next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
   }
   if (to.meta.admin && !auth.isAdmin) {
     next({ name: 'Forbidden' })

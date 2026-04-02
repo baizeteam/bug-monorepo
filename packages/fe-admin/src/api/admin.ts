@@ -47,6 +47,10 @@ export function getAdminOrderById(id: number) {
   return get<AdminOrderDetail>(`/api/admin/orders/${id}`)
 }
 
+export function softDeleteAdminOrder(id: number) {
+  return del<{ id: number }>(`/api/admin/orders/${id}`)
+}
+
 export interface AdminOrderStats {
   total: number
   byStatus: Record<number, number>

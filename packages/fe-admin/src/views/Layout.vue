@@ -22,7 +22,7 @@ function logout() {
   <el-container class="layout">
     <el-header class="header">
       <div class="header-left">
-        <router-link to="/" class="logo">后台管理</router-link>
+        <router-link to="/" class="logo">Bug平台后台管理</router-link>
         <el-menu
           :default-active="$route.path"
           mode="horizontal"

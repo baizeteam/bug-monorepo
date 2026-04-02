@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getBugDetail, takeBug, updateBugStatus } from '../api/bug'
+import { deleteBug, getBugDetail, takeBug, updateBugStatus } from '../api/bug'
 import { useAuthStore } from '../stores/auth'
 import type { BugItem } from '../api/bug'
 import { BUG_STATUS_LABELS, formatDate, BugStatus } from '@bug/shared'
@@ -17,13 +17,27 @@ const taking = ref(false)
 
 const id = computed(() => parseInt(route.params.id as string, 10))
 
-const canTake = computed(() => bug.value?.status === 0 && auth.isLoggedIn)
+const canTake = computed(
+  () =>
+    !!bug.value &&
+    auth.isLoggedIn &&
+    bug.value.status === BugStatus.PENDING &&
+    auth.user?.id !== bug.value.publisher?.id,
+)
 const canUpdateStatus = computed(
   () =>
     bug.value &&
     auth.isLoggedIn &&
     (bug.value.status === 1 || bug.value.status === 2) &&
     (auth.user?.id === bug.value.taker?.id || auth.user?.id === bug.value.publisher?.id),
+)
+const canDelete = computed(
+  () =>
+    !!bug.value &&
+    auth.isLoggedIn &&
+    bug.value.status === BugStatus.PENDING &&
+    auth.user?.id === bug.value.publisher?.id &&
+    !bug.value.taker?.id,
 )
 
 const description = computed(() => bug.value?.description ?? '')
@@ -65,6 +79,19 @@ async function handleUpdateStatus(newStatus: number) {
   }
 }
 
+async function handleDelete() {
+  if (!canDelete.value || !bug.value) return
+  const ok = window.confirm('确认删除该需求吗？删除后不可恢复。')
+  if (!ok) return
+  try {
+    await deleteBug(bug.value.id)
+    window.alert('删除成功')
+    router.push('/mine/published')
+  } catch (e) {
+    window.alert(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -95,6 +122,9 @@ onMounted(load)
       </div>
       <div v-if="canTake" class="actions">
         <button :disabled="taking" @click="handleTake">{{ taking ? '承接中...' : '承接此 Bug' }}</button>
+      </div>
+      <div v-if="canDelete" class="actions">
+        <button class="danger-btn" @click="handleDelete">删除需求</button>
       </div>
       <!-- 沟通中状态仅后台管理员可设置（拉进微信群后由运营改） -->
       <div v-if="canUpdateStatus && bug.status === 2" class="actions">
@@ -179,5 +209,10 @@ onMounted(load)
 }
 .actions button:disabled {
   opacity: 0.6;
+}
+.actions .danger-btn {
+  background: #fff5f5;
+  color: #f56c6c;
+  border: 1px solid #f56c6c;
 }
 </style>

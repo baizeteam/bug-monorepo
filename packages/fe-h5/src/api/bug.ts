@@ -1,4 +1,4 @@
-import { get, post } from '../utils/request'
+import { del, get, post } from '../utils/request'
 import type { BugItem, PaginatedResult } from '@bug/shared'
 
 export type { BugItem }
@@ -34,4 +34,8 @@ export function takeBug(id: number) {
 
 export function updateBugStatus(id: number, status: number, operationNote?: string) {
   return post(`/api/bug/${id}/status`, { status, operationNote })
+}
+
+export function deleteBug(id: number) {
+  return del<{ id: number }>(`/api/bug/${id}`)
 }

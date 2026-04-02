@@ -48,6 +48,11 @@ onMounted(load)
       <button @click="search">搜索</button>
     </div>
     <div v-if="loading" class="loading">加载中...</div>
+    <div v-else-if="list.length === 0" class="empty">
+      <img src="/empty-state.svg" alt="空状态" class="empty-image" />
+      <p>Bug 广场暂无数据</p>
+      <p class="hint">试试调整筛选条件或稍后再来看看</p>
+    </div>
     <div v-else class="list">
       <div
         v-for="item in list"
@@ -105,6 +110,22 @@ onMounted(load)
   text-align: center;
   padding: 2rem;
   color: #999;
+}
+.empty {
+  text-align: center;
+  color: #666;
+  padding: 2rem 1rem;
+}
+.empty-image {
+  width: 130px;
+  height: auto;
+  margin-bottom: 0.6rem;
+  opacity: 0.95;
+}
+.hint {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: #9a9a9a;
 }
 .list {
   display: flex;

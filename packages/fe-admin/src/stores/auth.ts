@@ -38,13 +38,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchProfile() {
     if (!token.value) return
-    const profile = await getProfile()
-    user.value = {
-      id: profile.id,
-      username: profile.username,
-      phone: profile.phone,
-      email: profile.email,
-      role: profile.role,
+    try {
+      const profile = await getProfile()
+      user.value = {
+        id: profile.id,
+        username: profile.username,
+        phone: profile.phone,
+        email: profile.email,
+        role: profile.role,
+      }
+    } catch (e) {
+      // token 失效或无权限时，清理本地登录态，交给路由/拦截器跳转登录
+      logout()
+      throw e
     }
   }
 

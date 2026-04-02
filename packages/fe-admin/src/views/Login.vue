@@ -8,12 +8,12 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const form = reactive({ account: '', password: '' })
+const form = reactive({ account: 'super_admin', password: 'admin123' })
 const loading = ref(false)
 const formRef = ref()
 
 const rules = {
-  account: [{ required: true, message: '请输入手机号或邮箱', trigger: 'blur' }],
+  account: [{ required: true, message: '请输入用户名/手机号/邮箱', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
@@ -45,7 +45,7 @@ async function handleLogin() {
       </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="账号" prop="account">
-          <el-input v-model="form.account" placeholder="手机号或邮箱" clearable />
+          <el-input v-model="form.account" placeholder="用户名/手机号/邮箱" clearable />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input v-model="form.password" type="password" placeholder="密码" show-password clearable />
@@ -56,11 +56,6 @@ async function handleLogin() {
           </el-button>
         </el-form-item>
       </el-form>
-      <div class="register-link">
-        <el-link type="primary" :underline="false" @click="router.push('/register')">
-          没有账号？去注册
-        </el-link>
-      </div>
     </el-card>
   </div>
 </template>
@@ -80,9 +75,5 @@ async function handleLogin() {
   font-size: 1.25rem;
   font-weight: 600;
   text-align: center;
-}
-.register-link {
-  text-align: center;
-  margin-top: 0.5rem;
 }
 </style>

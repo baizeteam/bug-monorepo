@@ -125,6 +125,21 @@ export class AdminService {
     }
   }
 
+  async softDeleteOrder(id: number, operatorId: number) {
+    const bug = await this.bugRepo.findOne({ where: { id, isDelete: 0 } })
+    if (!bug) throw new NotFoundException('订单不存在')
+    bug.isDelete = 1
+    await this.bugRepo.save(bug)
+    await this.logRepo.save({
+      operatorId,
+      bugId: bug.id,
+      operationType: OperationType.MANUAL_INTERVENTION,
+      operationContent: `超级管理员删除订单: ${bug.title} (id=${bug.id}, 软删除)`,
+      operationTime: new Date(),
+    })
+    return { id: bug.id }
+  }
+
   async getAdminOrderStats() {
     const qb = this.bugRepo.createQueryBuilder('bug').where('bug.is_delete = 0')
     const [total, pending, taken, communicating, resolved] = await Promise.all([
@@ -447,13 +462,21 @@ export class AdminService {
           role: UserRole.ADMIN,
           status: 0,
         },
+        {
+          username: 'user_demo',
+          phone: '13800000002',
+          email: 'user_demo@bug.local',
+          password: hash,
+          role: UserRole.USER,
+          status: 0,
+        },
       ])
       await this.ruleRepo.save([
         { ruleName: DEFAULT_TIME_RULE_NAMES[1], statusType: 1, warnHour: 24, expireHour: 72, isEnable: 1 },
         { ruleName: DEFAULT_TIME_RULE_NAMES[2], statusType: 2, warnHour: 48, expireHour: 120, isEnable: 1 },
       ])
 
-      return { message: '数据库已清空并重新初始化，默认管理员: super_admin/admin / admin123' }
+      return { message: '数据库已清空并重新初始化，默认账号: super_admin/admin(admin123), user_demo(user123)' }
     } finally {
       await qr.release()
     }

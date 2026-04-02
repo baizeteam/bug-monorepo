@@ -39,6 +39,9 @@ export class BugService {
     const bug = await this.bugRepo.findOne({ where: { id: bugId, isDelete: 0 } })
     if (!bug) throw new NotFoundException('Bug 不存在')
     if (bug.status !== BugStatus.PENDING) throw new BadRequestException('该 Bug 已被承接')
+    if (bug.publisherId === takerId) {
+      throw new BadRequestException('不能承接自己发布的需求')
+    }
     bug.takerId = takerId
     bug.status = BugStatus.TAKEN
     bug.takeTime = new Date()
@@ -103,10 +106,11 @@ export class BugService {
     pageSize?: number
   }) {
     const { techStack, status, timeStatus, keyword, page = 1, pageSize = 10 } = params
+    const effectiveStatus = status ?? BugStatus.PENDING
 
     const where: Record<string, unknown> = { isDelete: 0 }
     if (techStack) where.techStack = Like(`%${techStack}%`)
-    if (status !== undefined) where.status = status
+    where.status = effectiveStatus
     if (timeStatus !== undefined) where.timeStatus = timeStatus
 
     let list: Bug[]
@@ -120,7 +124,7 @@ export class BugService {
           kw: `%${keyword}%`,
         })
       if (techStack) qb.andWhere('bug.tech_stack LIKE :tech', { tech: `%${techStack}%` })
-      if (status !== undefined) qb.andWhere('bug.status = :status', { status })
+      qb.andWhere('bug.status = :status', { status: effectiveStatus })
       if (timeStatus !== undefined) qb.andWhere('bug.time_status = :timeStatus', { timeStatus })
       total = await qb.getCount()
       list = await qb
@@ -188,5 +192,25 @@ export class BugService {
       publisher,
       taker,
     }
+  }
+
+  async remove(bugId: number, operatorId: number) {
+    const bug = await this.bugRepo.findOne({ where: { id: bugId, isDelete: 0 } })
+    if (!bug) throw new NotFoundException('Bug 不存在')
+    if (bug.publisherId !== operatorId) throw new ForbiddenException('仅发布人可删除该需求')
+    if (bug.status !== BugStatus.PENDING || bug.takerId) {
+      throw new BadRequestException('需求已被承接，不能删除')
+    }
+
+    bug.isDelete = 1
+    await this.bugRepo.save(bug)
+    await this.logRepo.save({
+      operatorId,
+      bugId: bug.id,
+      operationType: OperationType.STATUS_UPDATE,
+      operationContent: `删除需求: ${bug.title}`,
+      operationTime: new Date(),
+    })
+    return { id: bug.id }
   }
 }

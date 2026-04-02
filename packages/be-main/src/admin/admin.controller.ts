@@ -32,6 +32,14 @@ export class AdminController {
     return this.adminService.getAdminOrderById(parseInt(id, 10))
   }
 
+  @Delete('orders/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  async deleteAdminOrder(@Param('id') id: string, @CurrentUser() user: { id: number; role: number }) {
+    this.adminService.ensureSuperAdmin(user.role)
+    return this.adminService.softDeleteOrder(parseInt(id, 10), user.id)
+  }
+
   @Get('orders')
   async getAdminOrders(
     @CurrentUser() user: { role: number },

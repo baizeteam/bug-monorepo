@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { getMyOrders, type MyOrderItem, type MyOrderType } from '../api/order'
+import { deleteBug } from '../api/bug'
 import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, formatDate } from '@bug/shared'
 
 const router = useRouter()
+const route = useRoute()
 const activeTab = ref<MyOrderType>('taken')
 const list = ref<MyOrderItem[]>([])
 const loading = ref(false)
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+const pageTitle = computed(() => {
+  if (route.name === 'MyNeeds') return '我的需求'
+  if (route.name === 'MyPublished') return '我发布的'
+  return '我的订单'
+})
 
 async function load() {
   loading.value = true
@@ -35,18 +42,42 @@ watch(activeTab, () => {
   load()
 })
 
+watch(
+  () => route.name,
+  (name) => {
+    if (name === 'MyNeeds') {
+      activeTab.value = 'taken'
+    } else if (name === 'MyPublished') {
+      activeTab.value = 'published'
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(load)
+
+async function removeBug(item: MyOrderItem) {
+  if (item.status !== 0) return
+  const ok = window.confirm('确认删除该需求吗？删除后不可恢复。')
+  if (!ok) return
+  try {
+    await deleteBug(item.id)
+    await load()
+  } catch (e) {
+    window.alert(e instanceof Error ? e.message : '删除失败')
+  }
+}
 </script>
 
 <template>
   <div class="my-orders">
-    <h1>我的订单</h1>
+    <h1>{{ pageTitle }}</h1>
     <div class="tabs">
       <button
         :class="{ active: activeTab === 'taken' }"
         @click="activeTab = 'taken'"
       >
-        我承接的
+        我的需求
       </button>
       <button
         :class="{ active: activeTab === 'published' }"
@@ -57,6 +88,7 @@ onMounted(load)
     </div>
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="list.length === 0" class="empty">
+      <img src="/empty-state.svg" alt="空状态" class="empty-image" />
       <p>暂无订单</p>
       <p class="hint">
         {{ activeTab === 'taken' ? '承接的 Bug 将显示在这里' : '发布的 Bug 将显示在这里' }}
@@ -87,6 +119,16 @@ onMounted(load)
         <p v-if="activeTab === 'published' && item.taker" class="publisher">
           承接人: {{ item.taker.username }}
         </p>
+        <div v-if="activeTab === 'published'" class="actions">
+          <button
+            v-if="item.status === 0"
+            class="danger-btn"
+            @click.stop="removeBug(item)"
+          >
+            删除需求
+          </button>
+          <span v-else class="disabled-tip">已被承接，不能删除</span>
+        </div>
       </div>
     </div>
     <div v-if="total > pageSize" class="pagination">
@@ -134,6 +176,12 @@ onMounted(load)
   padding: 2rem;
   color: #666;
 }
+.empty-image {
+  width: 130px;
+  height: auto;
+  margin-bottom: 0.6rem;
+  opacity: 0.95;
+}
 .empty .hint {
   font-size: 0.8rem;
   margin-top: 0.5rem;
@@ -170,6 +218,21 @@ onMounted(load)
   font-size: 0.8rem;
   color: #999;
   margin: 0;
+}
+.actions {
+  margin-top: 0.55rem;
+}
+.danger-btn {
+  border: 1px solid #f56c6c;
+  background: #fff5f5;
+  color: #f56c6c;
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+.disabled-tip {
+  color: #999;
+  font-size: 0.78rem;
 }
 .pagination {
   display: flex;

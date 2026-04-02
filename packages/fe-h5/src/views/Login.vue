@@ -7,8 +7,8 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const account = ref('')
-const password = ref('')
+const account = ref('user_demo')
+const password = ref('user123')
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -37,7 +37,7 @@ async function handleLogin() {
     <div class="login-card">
       <h1>Bug 平台</h1>
       <form @submit.prevent="handleLogin">
-        <input v-model="account" type="text" placeholder="手机号或邮箱" />
+        <input v-model="account" type="text" placeholder="用户名/手机号/邮箱" />
         <div class="password-wrap">
           <input
             v-model="password"

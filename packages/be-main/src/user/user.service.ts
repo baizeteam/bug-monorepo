@@ -41,6 +41,7 @@ export class UserService {
   async findByAccount(account: string) {
     return this.userRepo.findOne({
       where: [
+        { username: account, isDelete: 0 },
         { phone: account, isDelete: 0 },
         { email: account, isDelete: 0 },
       ],
