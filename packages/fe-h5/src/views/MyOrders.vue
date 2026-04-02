@@ -1,45 +1,56 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import ListScrollFooter from '../components/ListScrollFooter.vue'
 import { getMyOrders, type MyOrderItem, type MyOrderType } from '../api/order'
 import { deleteBug } from '../api/bug'
-import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, formatDate } from '@bug/shared'
+import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, createPagerState, formatDate, hasMoreByPayload, patchPagerFromPayload, resetPagerPage, shouldTriggerScrollLoad } from '@bug/shared'
 
 const router = useRouter()
 const route = useRoute()
 const activeTab = ref<MyOrderType>('taken')
 const list = ref<MyOrderItem[]>([])
 const loading = ref(false)
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const pager = reactive(createPagerState(1, 10))
 const pageTitle = computed(() => {
   if (route.name === 'MyNeeds') return '我的需求'
   if (route.name === 'MyPublished') return '我发布的'
   return '我的订单'
 })
 
-async function load() {
-  loading.value = true
+async function load(reset = false) {
+  if (loading.value || loadingMore.value || (!reset && !hasMore.value)) return
+  if (reset) {
+    resetPagerPage(pager)
+    hasMore.value = true
+  }
+  const isFirstPage = pager.page === 1
+  if (isFirstPage) loading.value = true
+  else loadingMore.value = true
   try {
     const res = await getMyOrders({
       type: activeTab.value,
-      page: page.value,
-      pageSize: pageSize.value,
+      page: pager.page,
+      pageSize: pager.pageSize,
     })
-    list.value = res.list
-    total.value = res.total
+    patchPagerFromPayload(pager, res)
+    list.value = isFirstPage ? res.list : [...list.value, ...res.list]
+    hasMore.value = hasMoreByPayload(res)
+    if (hasMore.value) pager.page += 1
   } catch {
-    list.value = []
-    total.value = 0
+    if (isFirstPage) list.value = []
+    pager.total = 0
+    hasMore.value = false
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
 watch(activeTab, () => {
-  page.value = 1
-  load()
+  load(true)
 })
 
 watch(
@@ -54,7 +65,25 @@ watch(
   { immediate: true },
 )
 
-onMounted(load)
+function onScroll() {
+  if (!shouldTriggerScrollLoad({
+    scrollTop: window.scrollY,
+    clientHeight: window.innerHeight,
+    scrollHeight: document.documentElement.scrollHeight,
+  })) {
+    return
+  }
+  load()
+}
+
+onMounted(() => {
+  load(true)
+  window.addEventListener('scroll', onScroll, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+})
 
 async function removeBug(item: MyOrderItem) {
   if (item.status !== 0) return
@@ -62,7 +91,7 @@ async function removeBug(item: MyOrderItem) {
   if (!ok) return
   try {
     await deleteBug(item.id)
-    await load()
+    await load(true)
   } catch (e) {
     window.alert(e instanceof Error ? e.message : '删除失败')
   }
@@ -131,11 +160,13 @@ async function removeBug(item: MyOrderItem) {
         </div>
       </div>
     </div>
-    <div v-if="total > pageSize" class="pagination">
-      <button :disabled="page <= 1" @click="page--; load()">上一页</button>
-      <span>{{ page }} / {{ Math.ceil(total / pageSize) }}</span>
-      <button :disabled="page * pageSize >= total" @click="page++; load()">下一页</button>
-    </div>
+    <ListScrollFooter
+      :loading="loading"
+      :loading-more="loadingMore"
+      :has-more="hasMore"
+      :list-length="list.length"
+      :total="pager.total"
+    />
   </div>
 </template>
 
@@ -233,16 +264,5 @@ async function removeBug(item: MyOrderItem) {
 .disabled-tip {
   color: #999;
   font-size: 0.78rem;
-}
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 </style>

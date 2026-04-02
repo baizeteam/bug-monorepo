@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, OPERATION_TYPE_LABELS, OperationType, BugStatus, TimeStatus } from '@bug/shared'
-import { getOverdueBugs, manualIntervention } from '../api/admin'
+import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, OPERATION_TYPE_LABELS, OperationType, BugStatus, TimeStatus, patchPagerFromPayload, resetPagerPage } from '@bug/shared'
+import { getOverdueBugs, manualIntervention, type OverdueBugRow } from '../api/admin'
 import { ElMessage } from 'element-plus'
+import AdminTablePagination from '../components/AdminTablePagination.vue'
+import { useAdminPager } from '../composables/useAdminPager'
 
 const auth = useAuthStore()
 const isSuperAdmin = computed(() => auth.isSuperAdmin)
-const list = ref<any[]>([])
+const list = ref<OverdueBugRow[]>([])
+const pager = useAdminPager()
 const loading = ref(false)
 const timeStatus = ref<number | ''>('')
 const interveneNote = ref('')
@@ -19,12 +22,21 @@ const dialogVisible = ref(false)
 async function load() {
   loading.value = true
   try {
-    list.value = await getOverdueBugs(
-      timeStatus.value === '' ? undefined : timeStatus.value,
-    )
+    const res = await getOverdueBugs({
+      timeStatus: timeStatus.value === '' ? undefined : timeStatus.value,
+      page: pager.page,
+      pageSize: pager.pageSize,
+    })
+    list.value = res.list
+    patchPagerFromPayload(pager, res)
   } finally {
     loading.value = false
   }
+}
+
+function onFilterChange() {
+  resetPagerPage(pager)
+  load()
 }
 
 async function handleIntervene() {
@@ -44,7 +56,7 @@ async function handleIntervene() {
   }
 }
 
-function openIntervene(bug: any) {
+function openIntervene(bug: OverdueBugRow) {
   interveneBugId.value = bug.id
   interveneNote.value = ''
   interveneStatus.value = BugStatus.COMMUNICATING
@@ -60,7 +72,7 @@ onMounted(load)
       <template #header>
         <div class="card-header">
           <span>时效监控</span>
-          <el-select v-model="timeStatus" placeholder="筛选状态" style="width: 120px" @change="load">
+          <el-select v-model="timeStatus" placeholder="筛选状态" style="width: 120px" @change="onFilterChange">
             <el-option label="全部" value="" />
             <el-option :label="TIME_STATUS_LABELS[TimeStatus.WARNING]" :value="TimeStatus.WARNING" />
             <el-option :label="TIME_STATUS_LABELS[TimeStatus.EXPIRED]" :value="TimeStatus.EXPIRED" />
@@ -97,6 +109,8 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
+      <el-empty v-if="!loading && list.length === 0" description="暂无数据" />
+      <AdminTablePagination v-model:page="pager.page" :total="pager.total" @change="load" />
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="OPERATION_TYPE_LABELS[OperationType.MANUAL_INTERVENTION]" width="400px">

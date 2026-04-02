@@ -10,15 +10,15 @@ import {
   updateUserStatus,
   type AdminUser,
 } from '../api/admin'
-import { USER_ROLE_LABELS, USER_STATUS_LABELS } from '@bug/shared'
+import AdminTablePagination from '../components/AdminTablePagination.vue'
+import { useAdminPager } from '../composables/useAdminPager'
+import { USER_ROLE_LABELS, USER_STATUS_LABELS, patchPagerFromPayload, resetPagerPage } from '@bug/shared'
 import { UserRole, UserStatus } from '@bug/shared'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const auth = useAuthStore()
 const list = ref<AdminUser[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(20)
+const pager = useAdminPager()
 const loading = ref(false)
 const keyword = ref('')
 const roleFilter = ref<number | ''>('')
@@ -77,21 +77,21 @@ async function load() {
   loading.value = true
   try {
     const res = await getAdminUserList({
-      page: page.value,
-      pageSize: pageSize.value,
+      page: pager.page,
+      pageSize: pager.pageSize,
       keyword: keyword.value || undefined,
       role: roleFilter.value === '' ? undefined : roleFilter.value,
       status: statusFilter.value === '' ? undefined : statusFilter.value,
     })
     list.value = res.list
-    total.value = res.total
+    patchPagerFromPayload(pager, res)
   } finally {
     loading.value = false
   }
 }
 
 function search() {
-  page.value = 1
+  resetPagerPage(pager)
   load()
 }
 
@@ -269,15 +269,7 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination
-        v-if="total > pageSize"
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        layout="prev, pager, next"
-        style="margin-top: 1rem; justify-content: center"
-        @current-change="load"
-      />
+      <AdminTablePagination v-model:page="pager.page" :total="pager.total" @change="load" />
     </el-card>
 
     <el-dialog v-model="createDialogVisible" title="新建用户" width="400px">

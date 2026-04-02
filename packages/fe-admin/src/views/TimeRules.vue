@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { BUG_STATUS_LABELS } from '@bug/shared'
-import { BugStatus } from '@bug/shared'
+import { BUG_STATUS_LABELS, BugStatus, patchPagerFromPayload, resetPagerPage } from '@bug/shared'
 import {
   getTimeRules,
   createTimeRule,
@@ -11,11 +10,14 @@ import {
 } from '../api/admin'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
+import AdminTablePagination from '../components/AdminTablePagination.vue'
+import { useAdminPager } from '../composables/useAdminPager'
 
 const auth = useAuthStore()
 const isSuperAdmin = computed(() => auth.isSuperAdmin)
 
 const list = ref<TimeRuleItem[]>([])
+const pager = useAdminPager()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
@@ -36,7 +38,9 @@ const statusTypeOptions = [
 async function load() {
   loading.value = true
   try {
-    list.value = await getTimeRules()
+    const res = await getTimeRules({ page: pager.page, pageSize: pager.pageSize })
+    list.value = res.list
+    patchPagerFromPayload(pager, res)
   } finally {
     loading.value = false
   }
@@ -85,6 +89,7 @@ async function submit() {
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false
+    resetPagerPage(pager)
     load()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '操作失败')
@@ -148,6 +153,7 @@ onMounted(load)
         </el-table-column>
       </el-table>
       <el-empty v-if="!loading && list.length === 0" description="暂无规则，可点击「新增规则」创建" />
+      <AdminTablePagination v-model:page="pager.page" :total="pager.total" @change="load" />
     </el-card>
 
     <el-dialog

@@ -1,40 +1,68 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import ListScrollFooter from '../components/ListScrollFooter.vue'
 import { getBugList, type BugItem } from '../api/bug'
-import { BUG_STATUS_LABELS, TIME_STATUS_LABELS } from '@bug/shared'
+import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, createPagerState, hasMoreByPayload, patchPagerFromPayload, resetPagerPage, shouldTriggerScrollLoad } from '@bug/shared'
 
 const router = useRouter()
 const list = ref<BugItem[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
+const pager = reactive(createPagerState(1, 10))
 const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(true)
 const keyword = ref('')
 const status = ref<number | ''>('')
 
-async function load() {
-  loading.value = true
+async function load(reset = false) {
+  if (loading.value || loadingMore.value || (!reset && !hasMore.value)) return
+  if (reset) {
+    resetPagerPage(pager)
+    hasMore.value = true
+  }
+  const isFirstPage = pager.page === 1
+  if (isFirstPage) loading.value = true
+  else loadingMore.value = true
   try {
     const res = await getBugList({
-      page: page.value,
-      pageSize: pageSize.value,
+      page: pager.page,
+      pageSize: pager.pageSize,
       keyword: keyword.value || undefined,
       status: status.value === '' ? undefined : status.value,
     })
-    list.value = res.list
-    total.value = res.total
+    patchPagerFromPayload(pager, res)
+    list.value = isFirstPage ? res.list : [...list.value, ...res.list]
+    hasMore.value = hasMoreByPayload(res)
+    if (hasMore.value) pager.page += 1
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
 function search() {
-  page.value = 1
+  load(true)
+}
+
+function onScroll() {
+  if (!shouldTriggerScrollLoad({
+    scrollTop: window.scrollY,
+    clientHeight: window.innerHeight,
+    scrollHeight: document.documentElement.scrollHeight,
+  })) {
+    return
+  }
   load()
 }
 
-onMounted(load)
+onMounted(() => {
+  load(true)
+  window.addEventListener('scroll', onScroll, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+})
 </script>
 
 <template>
@@ -71,11 +99,13 @@ onMounted(load)
         <p class="desc">{{ item.expectEffect }}</p>
       </div>
     </div>
-    <div v-if="total > pageSize" class="pagination">
-      <button :disabled="page <= 1" @click="page--; load()">上一页</button>
-      <span>{{ page }} / {{ Math.ceil(total / pageSize) }}</span>
-      <button :disabled="page * pageSize >= total" @click="page++; load()">下一页</button>
-    </div>
+    <ListScrollFooter
+      :loading="loading"
+      :loading-more="loadingMore"
+      :has-more="hasMore"
+      :list-length="list.length"
+      :total="pager.total"
+    />
   </div>
 </template>
 
@@ -160,16 +190,5 @@ onMounted(load)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 </style>

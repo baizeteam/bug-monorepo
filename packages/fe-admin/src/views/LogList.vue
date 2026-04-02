@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOperationLogs, getAdminUserList, type OperationLogItem } from '../api/admin'
-import { OPERATION_TYPE_LABELS } from '@bug/shared'
+import AdminTablePagination from '../components/AdminTablePagination.vue'
+import { useAdminPager } from '../composables/useAdminPager'
+import { OPERATION_TYPE_LABELS, patchPagerFromPayload, resetPagerPage } from '@bug/shared'
 import { OperationType } from '@bug/shared'
 
 const list = ref<OperationLogItem[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(5)
+const pager = useAdminPager()
 const loading = ref(false)
 const bugIdFilter = ref('')
 const operatorIdFilter = ref<number | ''>('')
@@ -34,18 +34,18 @@ async function load() {
       operationType: operationTypeFilter.value === '' ? undefined : operationTypeFilter.value,
       startTime: startTimeFilter.value || undefined,
       endTime: endTimeFilter.value || undefined,
-      page: page.value,
-      pageSize: pageSize.value,
+      page: pager.page,
+      pageSize: pager.pageSize,
     })
     list.value = res.list
-    total.value = res.total
+    patchPagerFromPayload(pager, res)
   } finally {
     loading.value = false
   }
 }
 
 function search() {
-  page.value = 1
+  resetPagerPage(pager)
   load()
 }
 
@@ -137,15 +137,7 @@ onMounted(() => {
         <el-table-column prop="operationTime" label="操作时间" width="180" />
       </el-table>
       <el-empty v-if="!loading && list.length === 0" description="暂无日志" />
-      <el-pagination
-        v-if="total > pageSize"
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        layout="prev, pager, next"
-        style="margin-top: 1rem; justify-content: center"
-        @current-change="load"
-      />
+      <AdminTablePagination v-model:page="pager.page" :total="pager.total" @change="load" />
     </el-card>
   </div>
 </template>

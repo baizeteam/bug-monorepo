@@ -1,5 +1,5 @@
 import { BugStatus, TimeStatus, UserRole, UserStatus } from '../types'
-import { OperationType } from '../types/operation'
+import { OperationType } from '../types'
 
 /** 用户角色文案 */
 export const USER_ROLE_LABELS: Record<UserRole, string> = {

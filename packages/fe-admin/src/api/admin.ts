@@ -1,5 +1,5 @@
 import { get, post, put, del } from '../utils/request'
-import { BugStatus, TimeStatus, UserRole, UserStatus } from '@bug/shared'
+import { BugStatus, TimeStatus, UserRole, UserStatus, type PaginatedResult } from '@bug/shared'
 
 export interface AdminOrderItem {
   id: number
@@ -60,11 +60,19 @@ export function getAdminOrderStats() {
   return get<AdminOrderStats>('/api/admin/orders/stats')
 }
 
-export function getOverdueBugs(timeStatus?: number) {
-  return get<any[]>(
-    '/api/admin/overdue-bugs',
-    timeStatus !== undefined ? { params: { timeStatus } } : undefined,
-  )
+export interface OverdueBugRow {
+  id: number
+  title: string
+  techStack: string
+  status: number
+  timeStatus: number
+  operationNote?: string | null
+  publisher?: { id: number; username: string; contactInfo?: string } | null
+  taker?: { id: number; username: string; contactInfo?: string } | null
+}
+
+export function getOverdueBugs(params?: { timeStatus?: number; page?: number; pageSize?: number }) {
+  return get<PaginatedResult<OverdueBugRow>>('/api/admin/overdue-bugs', { params })
 }
 
 export function manualIntervention(bugId: number, status: number, operationNote: string) {
@@ -81,11 +89,12 @@ export interface TimeRuleItem {
   isEnable: number
 }
 
-export function getTimeRules(onlyEnabled?: boolean) {
-  return get<TimeRuleItem[]>(
-    '/api/admin/time-rules',
-    onlyEnabled ? { params: { onlyEnabled: '1' } } : undefined,
-  )
+export function getTimeRules(params?: { onlyEnabled?: boolean; page?: number; pageSize?: number }) {
+  const q: Record<string, string | number> = {}
+  if (params?.onlyEnabled) q.onlyEnabled = '1'
+  if (params?.page != null) q.page = params.page
+  if (params?.pageSize != null) q.pageSize = params.pageSize
+  return get<PaginatedResult<TimeRuleItem>>('/api/admin/time-rules', { params: q })
 }
 
 export function createTimeRule(data: {

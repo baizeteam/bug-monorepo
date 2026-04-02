@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getAdminOrders, getAdminOrderById, getAdminOrderStats, softDeleteAdminOrder, type AdminOrderItem, type AdminOrderDetail } from '../api/admin'
-import { BUG_STATUS_LABELS, TIME_STATUS_LABELS } from '@bug/shared'
+import AdminTablePagination from '../components/AdminTablePagination.vue'
+import { useAdminPager } from '../composables/useAdminPager'
+import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, patchPagerFromPayload, resetPagerPage } from '@bug/shared'
 import { BugStatus, TimeStatus } from '@bug/shared'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref<AdminOrderItem[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(5)
+const pager = useAdminPager()
 const loading = ref(false)
 const keyword = ref('')
 const statusFilter = ref<number | ''>('')
@@ -25,14 +25,14 @@ async function load() {
   loading.value = true
   try {
     const res = await getAdminOrders({
-      page: page.value,
-      pageSize: pageSize.value,
+      page: pager.page,
+      pageSize: pager.pageSize,
       keyword: keyword.value || undefined,
       status: statusFilter.value === '' ? undefined : (statusFilter.value as BugStatus),
       timeStatus: timeStatusFilter.value === '' ? undefined : (timeStatusFilter.value as TimeStatus),
     })
     list.value = res.list
-    total.value = res.total
+    patchPagerFromPayload(pager, res)
   } finally {
     loading.value = false
   }
@@ -47,7 +47,7 @@ async function loadStats() {
 }
 
 function search() {
-  page.value = 1
+  resetPagerPage(pager)
   load()
 }
 
@@ -170,15 +170,7 @@ onMounted(() => {
         </el-table-column>
       </el-table>
       <el-empty v-if="!loading && list.length === 0" description="暂无订单数据" />
-      <el-pagination
-        v-if="total > pageSize"
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        layout="prev, pager, next"
-        style="margin-top: 1rem; justify-content: center"
-        @current-change="load"
-      />
+      <AdminTablePagination v-model:page="pager.page" :total="pager.total" @change="load" />
     </el-card>
 
     <el-dialog v-model="detailVisible" title="订单详情" width="600px" destroy-on-close>
