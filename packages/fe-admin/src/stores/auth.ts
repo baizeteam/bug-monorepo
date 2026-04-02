@@ -23,7 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
       return ['操作订单流转', '分配角色', '用户 CRUD', OPERATION_TYPE_LABELS[OperationType.MANUAL_INTERVENTION], '查看全部']
     }
     if (r === UserRole.ADMIN) {
-      return ['查看订单列表', '查看用户列表', '查看时效监控']
+      return ['查看订单列表', '查看用户列表（不含超级管理员）', '禁用/启用普通用户', '查看时效监控']
     }
     return []
   })

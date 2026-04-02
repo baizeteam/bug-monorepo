@@ -2,17 +2,16 @@
 import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import ListScrollFooter from '../components/ListScrollFooter.vue'
-import { getBugList, type BugItem } from '../api/bug'
-import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, createPagerState, hasMoreByPayload, patchPagerFromPayload, resetPagerPage, shouldTriggerScrollLoad } from '@bug/shared'
+import { getMyOrders, type MyOrderItem } from '../api/order'
+import { deleteBug } from '../api/bug'
+import { BUG_STATUS_LABELS, TIME_STATUS_LABELS, createPagerState, formatDate, hasMoreByPayload, patchPagerFromPayload, resetPagerPage, shouldTriggerScrollLoad } from '@bug/shared'
 
 const router = useRouter()
-const list = ref<BugItem[]>([])
-const pager = reactive(createPagerState(1, 10))
+const list = ref<MyOrderItem[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(true)
-const keyword = ref('')
-const status = ref<number | ''>('')
+const pager = reactive(createPagerState(1, 10))
 
 async function load(reset = false) {
   if (loading.value || loadingMore.value || (!reset && !hasMore.value)) return
@@ -24,32 +23,33 @@ async function load(reset = false) {
   if (isFirstPage) loading.value = true
   else loadingMore.value = true
   try {
-    const res = await getBugList({
+    const res = await getMyOrders({
+      type: 'published',
       page: pager.page,
       pageSize: pager.pageSize,
-      keyword: keyword.value || undefined,
-      status: status.value === '' ? undefined : status.value,
     })
     patchPagerFromPayload(pager, res)
     list.value = isFirstPage ? res.list : [...list.value, ...res.list]
     hasMore.value = hasMoreByPayload(res)
     if (hasMore.value) pager.page += 1
+  } catch {
+    if (isFirstPage) list.value = []
+    pager.total = 0
+    hasMore.value = false
   } finally {
     loading.value = false
     loadingMore.value = false
   }
 }
 
-function search() {
-  load(true)
-}
-
 function onScroll() {
-  if (!shouldTriggerScrollLoad({
-    scrollTop: window.scrollY,
-    clientHeight: window.innerHeight,
-    scrollHeight: document.documentElement.scrollHeight,
-  })) {
+  if (
+    !shouldTriggerScrollLoad({
+      scrollTop: window.scrollY,
+      clientHeight: window.innerHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+    })
+  ) {
     return
   }
   load()
@@ -63,25 +63,28 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
 })
+
+async function removeBug(item: MyOrderItem) {
+  if (item.status !== 0) return
+  const ok = window.confirm('确认删除该需求吗？删除后不可恢复。')
+  if (!ok) return
+  try {
+    await deleteBug(item.id)
+    await load(true)
+  } catch (e) {
+    window.alert(e instanceof Error ? e.message : '删除失败')
+  }
+}
 </script>
 
 <template>
-  <div class="bug-list">
-    <div class="search-sticky">
-      <div class="toolbar">
-        <input v-model="keyword" placeholder="关键词搜索" @keyup.enter="search" />
-        <select v-model="status" @change="search">
-          <option value="">全部状态</option>
-          <option v-for="(label, val) in BUG_STATUS_LABELS" :key="val" :value="Number(val)">{{ label }}</option>
-        </select>
-        <button @click="search">搜索</button>
-      </div>
-    </div>
+  <div class="my-orders-page">
+    <h1>我发布的</h1>
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="list.length === 0" class="empty">
       <img src="/empty-state.svg" alt="空状态" class="empty-image" />
-      <p>Bug 广场暂无数据</p>
-      <p class="hint">试试调整筛选条件或稍后再来看看</p>
+      <p>暂无订单</p>
+      <p class="hint">发布的 Bug 将显示在这里</p>
     </div>
     <div v-else class="list">
       <div
@@ -98,7 +101,12 @@ onUnmounted(() => {
             {{ TIME_STATUS_LABELS[item.timeStatus as keyof typeof TIME_STATUS_LABELS] ?? item.timeStatus }}
           </span>
         </p>
-        <p class="desc">{{ item.expectEffect }}</p>
+        <p class="time">发布于 {{ item.publishTime ? formatDate(item.publishTime) : '-' }}</p>
+        <p v-if="item.taker" class="publisher">承接人: {{ item.taker.username }}</p>
+        <div class="actions">
+          <button v-if="item.status === 0" class="danger-btn" @click.stop="removeBug(item)">删除需求</button>
+          <span v-else class="disabled-tip">已被承接，不能删除</span>
+        </div>
       </div>
     </div>
     <ListScrollFooter
@@ -112,49 +120,23 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.bug-list {
+.my-orders-page {
   max-width: 100%;
 }
-.search-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  margin: -0.75rem -0.75rem 0.75rem;
-  padding: 0.65rem 0.75rem;
-  background: #f6f7f9;
-  border-bottom: 1px solid #e8e8e8;
-}
-.toolbar {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.toolbar input,
-.toolbar select {
-  flex: 1;
-  min-width: 80px;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.875rem;
-}
-.toolbar button {
-  padding: 0.5rem 1rem;
-  background: #42b883;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.my-orders-page h1 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  color: #1a1a1a;
 }
 .loading {
   text-align: center;
   padding: 2rem;
-  color: #999;
+  color: #666;
 }
 .empty {
   text-align: center;
+  padding: 2rem;
   color: #666;
-  padding: 2rem 1rem;
 }
 .empty-image {
   width: 130px;
@@ -162,10 +144,9 @@ onUnmounted(() => {
   margin-bottom: 0.6rem;
   opacity: 0.95;
 }
-.hint {
-  margin-top: 0.35rem;
-  font-size: 0.82rem;
-  color: #9a9a9a;
+.empty .hint {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
 }
 .list {
   display: flex;
@@ -176,29 +157,43 @@ onUnmounted(() => {
   background: white;
   padding: 1rem;
   border-radius: 8px;
-  cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
 }
 .card h3 {
   margin: 0 0 0.5rem;
   font-size: 1rem;
+  color: #1a1a1a;
 }
 .card .meta {
   display: flex;
   gap: 0.75rem;
   font-size: 0.8rem;
   color: #666;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 .card .meta .expired {
   color: #f56c6c;
 }
-.card .desc {
+.card .time,
+.card .publisher {
   font-size: 0.8rem;
   color: #999;
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.actions {
+  margin-top: 0.55rem;
+}
+.danger-btn {
+  border: 1px solid #f56c6c;
+  background: #fff5f5;
+  color: #f56c6c;
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+.disabled-tip {
+  color: #999;
+  font-size: 0.78rem;
 }
 </style>

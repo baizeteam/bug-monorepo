@@ -25,6 +25,10 @@ const roleFilter = ref<number | ''>('')
 const statusFilter = ref<number | ''>('')
 
 const isSuperAdmin = computed(() => auth.isSuperAdmin)
+/** 普通管理员（非超管）：仅可对普通用户做启用/禁用 */
+const isPlainAdmin = computed(() => auth.user?.role === UserRole.ADMIN)
+/** 当前登录用户 id，用于禁止普通管理员改自己状态 */
+const selfUserId = computed(() => auth.user?.id)
 
 const createDialogVisible = ref(false)
 const editDialogVisible = ref(false)
@@ -179,9 +183,22 @@ async function handleAssignRole() {
 }
 
 function openStatusModal(user: AdminUser) {
+  if (isPlainAdmin.value) {
+    if (user.id === selfUserId.value) return
+    if (user.role !== UserRole.USER) return
+  }
   currentUser.value = user
   assignStatusValue.value = user.status as UserStatus
   statusDialogVisible.value = true
+}
+
+/** 普通管理员：仅展示「状态」；可点的只有「非本人的普通用户」 */
+function plainAdminShowStatusButton(row: AdminUser) {
+  return row.role === UserRole.USER || row.id === selfUserId.value
+}
+
+function plainAdminStatusDisabled(row: AdminUser) {
+  return row.id === selfUserId.value || row.role !== UserRole.USER
 }
 
 async function handleUpdateStatus() {
@@ -213,6 +230,12 @@ const roleOptions = [
   { value: UserRole.USER, label: USER_ROLE_LABELS[UserRole.USER] },
   { value: UserRole.ADMIN, label: USER_ROLE_LABELS[UserRole.ADMIN] },
 ]
+
+/** 列表接口不返回超级管理员，筛选里也不展示该角色 */
+const roleFilterOptions = [
+  { value: UserRole.USER, label: USER_ROLE_LABELS[UserRole.USER] },
+  { value: UserRole.ADMIN, label: USER_ROLE_LABELS[UserRole.ADMIN] },
+]
 const statusOptions = [
   { value: UserStatus.NORMAL, label: USER_STATUS_LABELS[UserStatus.NORMAL] },
   { value: UserStatus.DISABLED, label: USER_STATUS_LABELS[UserStatus.DISABLED] },
@@ -234,7 +257,7 @@ onMounted(load)
         <el-input v-model="keyword" placeholder="用户名/手机/邮箱" clearable style="width: 200px" @keyup.enter="search" />
         <el-select v-model="roleFilter" placeholder="角色" clearable style="width: 120px" @change="search">
           <el-option label="全部角色" value="" />
-          <el-option v-for="(label, val) in USER_ROLE_LABELS" :key="val" :label="label" :value="Number(val)" />
+          <el-option v-for="opt in roleFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
         <el-select v-model="statusFilter" placeholder="状态" clearable style="width: 120px" @change="search">
           <el-option label="全部状态" value="" />
@@ -260,12 +283,25 @@ onMounted(load)
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
-        <el-table-column v-if="isSuperAdmin" label="操作" width="220" fixed="right">
+        <el-table-column v-if="isSuperAdmin || isPlainAdmin" label="操作" :width="isSuperAdmin ? 220 : 90" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button type="primary" link size="small" @click="openRoleModal(row)">分配角色</el-button>
-            <el-button type="primary" link size="small" @click="openStatusModal(row)">状态</el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+            <template v-if="isSuperAdmin">
+              <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button type="primary" link size="small" @click="openRoleModal(row)">分配角色</el-button>
+              <el-button type="primary" link size="small" @click="openStatusModal(row)">状态</el-button>
+              <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+            </template>
+            <template v-else-if="isPlainAdmin && plainAdminShowStatusButton(row)">
+              <el-button
+                type="primary"
+                link
+                size="small"
+                :disabled="plainAdminStatusDisabled(row)"
+                @click="openStatusModal(row)"
+              >
+                状态
+              </el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
